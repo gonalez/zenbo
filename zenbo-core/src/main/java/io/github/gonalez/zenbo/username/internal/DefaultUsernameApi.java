@@ -79,7 +79,7 @@ public class DefaultUsernameApi implements UsernameApi {
   }
 
   @Override
-  public ListenableFuture<UsernamesToUuidsResponse> usernameToUuids(UsernamesToUuidsRequest request) {
+  public ListenableFuture<UsernamesToUuidsResponse> usernamesToUuids(UsernamesToUuidsRequest request) {
     return Futures.submitAsync(
         () -> {
           ImmutableList<ListenableFuture<UsernameToUuidResponse>> responses = request.usernames().stream()

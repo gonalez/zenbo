@@ -17,6 +17,7 @@ package io.github.gonalez.zenbo.username;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+
 import io.github.gonalez.zenbo.ResponseFailureException;
 import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
 import io.github.gonalez.zenbo.username.internal.DefaultUsernameApi;
@@ -81,7 +82,7 @@ public class UsernameApiTest {
   @Test
   public void testUsernamesToUuids() throws Exception {
     assertEquals(ImmutableSet.of(QENTIN_UUID, NOTCH_UUID),
-        usernameApi.usernameToUuids(
+        usernameApi.usernamesToUuids(
             ImmutableUsernamesToUuidsRequest.builder()
                 .usernames(ImmutableList.of("Qentin", "Notch"))
                 .build())
