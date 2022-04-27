@@ -15,24 +15,21 @@
  */
 package io.github.gonalez.zenbo;
 
-import java.util.Optional;
-
 /**
- * Represents a request being sent to a Mojang API.
+ * Thrown when failed to get a response from an API.
  *
- * @param <T> the type of response expected by this request.
  * @author Gaston Gonzalez (Gonalez)
  */
-public interface Request<T extends Response> {
-  /** Listeners to execute when the response for this request is obtained. */
-  interface RequestListener<T extends Response> {
-    /** Called when the response was successfully obtained. */
-    void onSuccess(T t);
-
-    /** Called when failed to get the response. */
-    void onFailure(Throwable throwable);
+public class ResponseFailureException extends Exception {
+  public ResponseFailureException() {
+    super();
   }
 
-  /** @return a {@code Optional} of the request listener. */
-  Optional<RequestListener<T>> listener();
+  public ResponseFailureException(String message) {
+    super(message);
+  }
+
+  public ResponseFailureException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

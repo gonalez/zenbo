@@ -15,9 +15,8 @@
  */
 package io.github.gonalez.zenbo.username;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import com.google.common.util.concurrent.ListenableFuture;
+import io.github.gonalez.zenbo.ResponseFailureException;
+import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
 import io.github.gonalez.zenbo.username.internal.DefaultUsernameApi;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterAll;
@@ -26,6 +25,8 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.UUID;
 import java.util.concurrent.*;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for the {@link UsernameApi}.
@@ -37,7 +38,10 @@ public class UsernameApiTest {
   private static final UUID QENTIN_UUID = UUID.fromString("51800622-9dae-4b23-84a7-26d6a27c60db");
 
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
-  private final UsernameApi usernameApi = new DefaultUsernameApi(new OkHttpClient(), executor);
+  private final UsernameApi usernameApi = new DefaultUsernameApi(new OkHttpClient(), executor,
+      ResponseFailureExceptionProvider.newBuilder()
+          .withException(204, new ResponseFailureException())
+          .build());
 
   @AfterAll
   public void tearDown() {
@@ -46,11 +50,19 @@ public class UsernameApiTest {
 
   @Test
   public void testUsernameToUuid() throws Exception {
-    ListenableFuture<UsernameToUuidResponse> usernameToUuidResponseListenableFuture =
-        usernameApi.usernameToUuid(
-            ImmutableUsernameToUuidRequest.builder()
-                .username("Qentin")
-                .build());
-    assertEquals(QENTIN_UUID, usernameToUuidResponseListenableFuture.get().uuid());
+    assertEquals(QENTIN_UUID, usernameApi.usernameToUuid(
+        ImmutableUsernameToUuidRequest.builder()
+            .username("Qentin")
+            .build())
+        .get().uuid());
+  }
+
+  @Test
+  public void testInvalidUsername204() throws Exception {
+    ExecutionException exception = assertThrows(ExecutionException.class, usernameApi.usernameToUuid(
+        ImmutableUsernameToUuidRequest.builder()
+            .username("1234a56789")
+            .build())::get);
+    assertInstanceOf(ResponseFailureException.class, exception.getCause());
   }
 }

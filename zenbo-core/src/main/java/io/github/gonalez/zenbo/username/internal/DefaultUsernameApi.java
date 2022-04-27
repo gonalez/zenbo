@@ -15,10 +15,16 @@
  */
 package io.github.gonalez.zenbo.username.internal;
 
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.gson.JsonObject;
+import io.github.gonalez.zenbo.ResponseFailureException;
+import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
 import io.github.gonalez.zenbo.OkResponses;
+import io.github.gonalez.zenbo.Responses;
 import io.github.gonalez.zenbo.username.*;
+import io.github.gonalez.zenbo.Request.RequestListener;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -34,12 +40,15 @@ import java.util.concurrent.Executor;
 public class DefaultUsernameApi implements UsernameApi {
   private final OkHttpClient httpClient;
   private final Executor executor;
+  private final ResponseFailureExceptionProvider interceptorProvider;
 
   public DefaultUsernameApi(
       OkHttpClient httpClient,
-      Executor executor) {
+      Executor executor,
+      ResponseFailureExceptionProvider interceptorProvider) {
     this.httpClient = httpClient;
     this.executor = executor;
+    this.interceptorProvider = interceptorProvider;
   }
 
   @Override
@@ -52,11 +61,17 @@ public class DefaultUsernameApi implements UsernameApi {
                     .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
                     .build())
                 .execute();
-            return Futures.immediateFuture(
+            ResponseFailureException failureException = interceptorProvider.provide(response.code());
+            if (failureException != null) {
+              return Futures.immediateFailedFuture(failureException);
+            }
+            JsonObject responseJsonObject = OkResponses.responseToJson(response).getAsJsonObject();
+            ListenableFuture<UsernameToUuidResponse> responseListenableFuture = Futures.immediateFuture(
                 ImmutableUsernameToUuidResponse.builder()
-                    .uuid(StringUuids.uuidFromString(
-                        OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
+                    .uuid(StringUuids.uuidFromString(responseJsonObject.get("id").getAsString()))
                     .build());
+            Responses.addListenersIfPresent(responseListenableFuture, request, executor);
+            return responseListenableFuture;
           } catch (IOException e) {
             return Futures.immediateFailedFuture(e);
           }

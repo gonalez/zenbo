@@ -24,7 +24,7 @@ import org.immutables.value.Value;
  * @author Gaston Gonzalez (Gonalez)
  */
 @Value.Immutable
-public interface UsernameToUuidRequest extends Request {
+public interface UsernameToUuidRequest extends Request<UsernameToUuidResponse> {
   /** @return the name for which to get the uuid for. */
   String username();
 }
