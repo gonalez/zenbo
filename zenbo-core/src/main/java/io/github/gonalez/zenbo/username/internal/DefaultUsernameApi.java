@@ -20,7 +20,9 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.*;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.github.gonalez.zenbo.*;
 import io.github.gonalez.zenbo.username.*;
 import okhttp3.OkHttpClient;
@@ -155,6 +157,45 @@ public class DefaultUsernameApi implements UsernameApi {
                       .build()), request, executor);
           Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
           return futureResponse;
+        }, executor);
+  }
+
+  @Override
+  public ListenableFuture<UuidToProfileAndSkinCapeResponse> uuidToProfileAndSkinCape(UuidToProfileAndSkinCapeRequest request) {
+    return Futures.submitAsync(
+        () -> {
+          Response response = httpClient.newCall(
+              new Request.Builder()
+                  .url("https://sessionserver.mojang.com/session/minecraft/profile/" + request.uuid().toString())
+                  .build())
+              .execute();
+          ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
+          if (failureException != null) {
+            return Futures.immediateFailedFuture(failureException);
+          }
+          JsonObject jsonObjectResponse = OkResponses.responseToJson(response).getAsJsonObject();
+          ImmutableUuidToProfileAndSkinCapeResponse.Builder builder =
+              ImmutableUuidToProfileAndSkinCapeResponse.builder()
+                  .username(jsonObjectResponse.get("name").getAsString());
+          if (jsonObjectResponse.has("properties")) {
+            JsonObject jsonObject = JsonParser.parseString(new String(
+                Base64.getDecoder().decode(jsonObjectResponse.getAsJsonArray("properties")
+                    .get(0)
+                    .getAsJsonObject()
+                    .get("value")
+                    .getAsString())))
+                .getAsJsonObject();
+            if (jsonObject.has("textures")) {
+              JsonObject texturesJsonObject = jsonObject.get("textures").getAsJsonObject();
+              if (texturesJsonObject.has("SKIN")) {
+                builder.skinUrl(texturesJsonObject.get("SKIN").getAsJsonObject().get("url").getAsString());
+              }
+              if (texturesJsonObject.has("CAPE")) {
+                builder.capeUrl(texturesJsonObject.get("CAPE").getAsJsonObject().get("url").getAsString());
+              }
+            }
+          }
+          return Futures.immediateFuture(builder.build());
         }, executor);
   }
 }

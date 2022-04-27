@@ -15,6 +15,8 @@
  */
 package io.github.gonalez.zenbo.username;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -29,8 +31,6 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.UUID;
 import java.util.concurrent.*;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for the {@link UsernameApi}.
@@ -88,5 +88,15 @@ public class UsernameApiTest {
                 .usernames(ImmutableList.of("Qentin", "Notch"))
                 .build())
             .get().uuid());
+  }
+
+  @Test
+  public void testUuidToProfileAndSkinCape() throws Exception {
+    assertEquals("http://textures.minecraft.net/texture/beb81f3bf4cc08c4b2038c900d5b32401a9bc7935acfed6c5d3498b566ba20c3",
+        usernameApi.uuidToProfileAndSkinCape(
+                ImmutableUuidToProfileAndSkinCapeRequest.builder()
+                    .uuid(QENTIN_UUID)
+                    .build())
+            .get().skinUrl().get());
   }
 }

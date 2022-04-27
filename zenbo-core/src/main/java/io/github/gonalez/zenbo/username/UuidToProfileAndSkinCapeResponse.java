@@ -13,23 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.gonalez.zenbo;
+package io.github.gonalez.zenbo.username;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import okhttp3.Response;
+import io.github.gonalez.zenbo.Response;
+import org.immutables.value.Value;
 
-import java.io.IOException;
+import java.util.Optional;
 
 /**
- * Static methods to work with OkHttp requests.
+ * Represents the response of a {@link UuidToProfileAndSkinCapeRequest}.
  *
  * @author Gaston Gonzalez (Gonalez)
+ * @see UuidToProfileAndSkinCapeRequest
  */
-public final class OkResponses {
-  private OkResponses() {}
+@Value.Immutable
+public interface UuidToProfileAndSkinCapeResponse extends Response {
+  /** @return the username of the requested uuid. */
+  String username();
 
-  public static JsonElement responseToJson(Response response) throws IOException {
-    return JsonParser.parseString(response.body().string());
-  }
+  /** @return the skin url of the requested uuid. */
+  Optional<String> skinUrl();
+
+  /** @return the cape url of the requested uuid. */
+  Optional<String> capeUrl();
 }

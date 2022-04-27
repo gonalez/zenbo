@@ -13,23 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.gonalez.zenbo;
+package io.github.gonalez.zenbo.username;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import okhttp3.Response;
+import io.github.gonalez.zenbo.Request;
+import org.immutables.value.Value;
 
-import java.io.IOException;
+import java.util.UUID;
 
 /**
- * Static methods to work with OkHttp requests.
+ * Represents the request for the <a href="https://wiki.vg/Mojang_API#UUID_to_Profile_and_Skin.2FCape">UUID to Profile and Skin/Cape</a>.
  *
  * @author Gaston Gonzalez (Gonalez)
  */
-public final class OkResponses {
-  private OkResponses() {}
-
-  public static JsonElement responseToJson(Response response) throws IOException {
-    return JsonParser.parseString(response.body().string());
-  }
+@Value.Immutable
+public interface UuidToProfileAndSkinCapeRequest extends Request<UuidToProfileAndSkinCapeResponse> {
+  /** @return the uuid for which to get the information for. */
+  UUID uuid();
 }

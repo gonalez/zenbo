@@ -49,4 +49,13 @@ public interface UsernameApi {
    * @see <a href="https://wiki.vg/Mojang_API#UUID_to_Name_History">UUID to Name History</a>
    */
   ListenableFuture<UuidToNameHistoryResponse> uuidToNameHistory(UuidToNameHistoryRequest request);
+
+  /**
+   * Returns a response containing additional information of the requested uuid.
+   *
+   * @param request the request to get the response for.
+   * @return the request response.
+   * @see <a href="https://wiki.vg/Mojang_API#UUID_to_Profile_and_Skin.2FCape">UUID to Profile and Skin/Cape</a>
+   */
+  ListenableFuture<UuidToProfileAndSkinCapeResponse> uuidToProfileAndSkinCape(UuidToProfileAndSkinCapeRequest request);
 }
