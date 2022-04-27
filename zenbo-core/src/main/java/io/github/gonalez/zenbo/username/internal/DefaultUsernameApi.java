@@ -70,11 +70,14 @@ public class DefaultUsernameApi implements UsernameApi {
           if (failureException != null) {
             return Futures.immediateFailedFuture(failureException);
           }
-          return Responses.addListenersIfPresent(Futures.immediateFuture(
-              ImmutableUsernameToUuidResponse.builder()
-                  .uuid(StringUuids.uuidFromString(
-                      OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
-                  .build()), request, executor);
+          ListenableFuture<UsernameToUuidResponse> futureResponse = Responses.addListenersIfPresent(
+              Futures.immediateFuture(
+                  ImmutableUsernameToUuidResponse.builder()
+                      .uuid(StringUuids.uuidFromString(
+                          OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
+                      .build()), request, executor);
+          Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
+          return futureResponse;
         }, executor);
   }
 
@@ -110,10 +113,13 @@ public class DefaultUsernameApi implements UsernameApi {
                               uuids.size(),
                               request.usernames().size())));
                     }
-                    return Responses.addListenersIfPresent(Futures.immediateFuture(
-                        ImmutableUsernamesToUuidsResponse.builder()
-                            .uuid(uuids)
-                            .build()), request, executor);
+                    ListenableFuture<UsernamesToUuidsResponse> futureResponse = Responses.addListenersIfPresent(
+                        Futures.immediateFuture(
+                            ImmutableUsernamesToUuidsResponse.builder()
+                                .uuid(uuids)
+                                .build()), request, executor);
+                    Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
+                    return futureResponse;
                   }, executor);
         }, executor);
   }
@@ -142,10 +148,13 @@ public class DefaultUsernameApi implements UsernameApi {
             JsonObject jsonObject = responseJsonArray.get(i).getAsJsonObject();
             usernames.add(jsonObject.get("name").getAsString());
           }
-          return Responses.addListenersIfPresent(Futures.immediateFuture(
-              ImmutableUuidToNameHistoryResponse.builder()
-                  .usernames(usernames)
-                  .build()), request, executor);
+          ListenableFuture<UuidToNameHistoryResponse> futureResponse = Responses.addListenersIfPresent(
+              Futures.immediateFuture(
+                  ImmutableUuidToNameHistoryResponse.builder()
+                      .usernames(usernames)
+                      .build()), request, executor);
+          Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
+          return futureResponse;
         }, executor);
   }
 }

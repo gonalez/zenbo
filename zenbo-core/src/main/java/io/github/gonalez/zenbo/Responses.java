@@ -65,4 +65,17 @@ public final class Responses {
     }
     return futureCache.get(request);
   }
+
+  public static <T extends Response> void cacheFutureRequestIfAvailable(
+      Request<T> request,
+      ListenableFuture<T> future,
+      ResponseFutureCache futureCache) {
+    Optional<Request.RequestOptions> optional = request.options();
+    if (!optional.isPresent()) {
+      return;
+    }
+    if (optional.get().cacheable()) {
+      futureCache.put(request, future);
+    }
+  }
 }
