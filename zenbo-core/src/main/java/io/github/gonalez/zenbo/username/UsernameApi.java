@@ -31,4 +31,22 @@ public interface UsernameApi {
    * @see <a href="https://wiki.vg/Mojang_API#Username_to_UUID">Username to UUID</a>
    */
   ListenableFuture<UsernameToUuidResponse> usernameToUuid(UsernameToUuidRequest request);
+
+  /**
+   * Returns a response containing the UUID of the requested username.
+   *
+   * @param request the request to get the response for.
+   * @return the request response.
+   * @see <a href="https://wiki.vg/Mojang_API#Usernames_to_UUIDs">Username to UUIDs</a>
+   */
+  ListenableFuture<UsernamesToUuidsResponse> usernameToUuids(UsernamesToUuidsRequest request);
+
+  /**
+   * Returns a response containing all the usernames of the requested uuid.
+   *
+   * @param request the request to get the response for.
+   * @return the request response.
+   * @see <a href="https://wiki.vg/Mojang_API#UUID_to_Name_History">UUID to Name History</a>
+   */
+  ListenableFuture<UuidToNameHistoryResponse> uuidToNameHistory(UuidToNameHistoryRequest request);
 }

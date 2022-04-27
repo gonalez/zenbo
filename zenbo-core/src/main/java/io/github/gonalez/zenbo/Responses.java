@@ -29,10 +29,10 @@ import java.util.concurrent.Executor;
 public final class Responses {
   private Responses() {}
 
-  public static <T extends Response> void addListenersIfPresent(
+  public static <T extends Response> ListenableFuture<T> addListenersIfPresent(
       ListenableFuture<T> future, Request<T> request, Executor executor) {
     if (!request.listener().isPresent()) {
-      return;
+      return future;
     }
     Request.RequestListener<T> listener = request.listener().get();
     Futures.addCallback(future, new FutureCallback<>() {
@@ -46,5 +46,6 @@ public final class Responses {
         listener.onFailure(throwable);
       }
     }, executor);
+    return future;
   }
 }

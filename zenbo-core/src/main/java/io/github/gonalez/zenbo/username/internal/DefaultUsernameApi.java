@@ -15,22 +15,24 @@
  */
 package io.github.gonalez.zenbo.username.internal;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.*;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.github.gonalez.zenbo.ResponseFailureException;
 import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
 import io.github.gonalez.zenbo.OkResponses;
 import io.github.gonalez.zenbo.Responses;
 import io.github.gonalez.zenbo.username.*;
-import io.github.gonalez.zenbo.Request.RequestListener;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
 import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.Executor;
+
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 /**
  * A basic implementation of {@link UsernameApi}.
@@ -40,15 +42,15 @@ import java.util.concurrent.Executor;
 public class DefaultUsernameApi implements UsernameApi {
   private final OkHttpClient httpClient;
   private final Executor executor;
-  private final ResponseFailureExceptionProvider interceptorProvider;
+  private final ResponseFailureExceptionProvider failureExceptionProvider;
 
   public DefaultUsernameApi(
       OkHttpClient httpClient,
       Executor executor,
-      ResponseFailureExceptionProvider interceptorProvider) {
+      ResponseFailureExceptionProvider failureExceptionProvider) {
     this.httpClient = httpClient;
     this.executor = executor;
-    this.interceptorProvider = interceptorProvider;
+    this.failureExceptionProvider = failureExceptionProvider;
   }
 
   @Override
@@ -61,17 +63,80 @@ public class DefaultUsernameApi implements UsernameApi {
                     .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
                     .build())
                 .execute();
-            ResponseFailureException failureException = interceptorProvider.provide(response.code());
+            ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
             if (failureException != null) {
               return Futures.immediateFailedFuture(failureException);
             }
-            JsonObject responseJsonObject = OkResponses.responseToJson(response).getAsJsonObject();
-            ListenableFuture<UsernameToUuidResponse> responseListenableFuture = Futures.immediateFuture(
+            return Responses.addListenersIfPresent(Futures.immediateFuture(
                 ImmutableUsernameToUuidResponse.builder()
-                    .uuid(StringUuids.uuidFromString(responseJsonObject.get("id").getAsString()))
-                    .build());
-            Responses.addListenersIfPresent(responseListenableFuture, request, executor);
-            return responseListenableFuture;
+                    .uuid(StringUuids.uuidFromString(
+                        OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
+                    .build()), request, executor);
+          } catch (IOException e) {
+            return Futures.immediateFailedFuture(e);
+          }
+        }, executor);
+  }
+
+  @Override
+  public ListenableFuture<UsernamesToUuidsResponse> usernameToUuids(UsernamesToUuidsRequest request) {
+    return Futures.submitAsync(
+        () -> {
+          ImmutableList<ListenableFuture<UsernameToUuidResponse>> responses = request.usernames().stream()
+              .map(s -> usernameToUuid(
+                  ImmutableUsernameToUuidRequest.builder()
+                      .username(s)
+                      .build()))
+              .collect(toImmutableList());
+          return Futures.whenAllComplete(responses)
+              .callAsync(
+                  () -> {
+                    Set<UUID> uuids = new HashSet<>();
+                    for (ListenableFuture<UsernameToUuidResponse> response : responses) {
+                      UsernameToUuidResponse getDone = Futures.getDone(response);
+                      if (getDone == null) {
+                        continue;
+                      }
+                      uuids.add(getDone.uuid());
+                    }
+                    if (uuids.size() != request.usernames().size()) {
+                      return Futures.immediateFailedFuture(new ResponseFailureException(
+                          String.format("Failed to get complete list of usernames, got %d, expected %d",
+                              uuids.size(),
+                              request.usernames().size())));
+                    }
+                    return Responses.addListenersIfPresent(Futures.immediateFuture(
+                        ImmutableUsernamesToUuidsResponse.builder()
+                            .uuid(uuids)
+                            .build()), request, executor);
+                  }, executor);
+        }, executor);
+  }
+
+  @Override
+  public ListenableFuture<UuidToNameHistoryResponse> uuidToNameHistory(UuidToNameHistoryRequest request) {
+    return Futures.submitAsync(
+        () -> {
+          try {
+            Response response = httpClient.newCall(
+                new Request.Builder()
+                    .url("https://api.mojang.com/user/profiles/" + request.uuid().toString() + "/names")
+                    .build())
+                .execute();
+            ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
+            if (failureException != null) {
+              return Futures.immediateFailedFuture(failureException);
+            }
+            JsonArray responseJsonArray = OkResponses.responseToJson(response).getAsJsonArray();
+            Set<String> usernames = new HashSet<>();
+            for (int i = 0 ; i < responseJsonArray.size(); i++) {
+              JsonObject jsonObject = responseJsonArray.get(i).getAsJsonObject();
+              usernames.add(jsonObject.get("name").getAsString());
+            }
+            return Responses.addListenersIfPresent(Futures.immediateFuture(
+                ImmutableUuidToNameHistoryResponse.builder()
+                    .usernames(usernames)
+                    .build()), request, executor);
           } catch (IOException e) {
             return Futures.immediateFailedFuture(e);
           }
