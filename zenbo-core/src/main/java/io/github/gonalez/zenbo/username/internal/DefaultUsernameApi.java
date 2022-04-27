@@ -17,16 +17,18 @@ package io.github.gonalez.zenbo.username.internal;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
-import io.github.gonalez.zenbo.username.UsernameApi;
-import io.github.gonalez.zenbo.username.UsernameToUuidRequest;
-import io.github.gonalez.zenbo.username.UsernameToUuidResponse;
+import io.github.gonalez.zenbo.OkResponses;
+import io.github.gonalez.zenbo.username.*;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
+import java.io.IOException;
 import java.util.concurrent.Executor;
 
 /**
+ * A basic implementation of {@link UsernameApi}.
+ *
  * @author Gaston Gonzalez (Gonalez)
  */
 public class DefaultUsernameApi implements UsernameApi {
@@ -44,12 +46,20 @@ public class DefaultUsernameApi implements UsernameApi {
   public ListenableFuture<UsernameToUuidResponse> usernameToUuid(UsernameToUuidRequest request) {
     return Futures.submitAsync(
         () -> {
-          Response response = httpClient.newCall(
-              new Request.Builder()
-                  .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
-                  .build())
-              .execute();
-          return Futures.immediateFuture(null);
+          try {
+            Response response = httpClient.newCall(
+                new Request.Builder()
+                    .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
+                    .build())
+                .execute();
+            return Futures.immediateFuture(
+                ImmutableUsernameToUuidResponse.builder()
+                    .uuid(StringUuids.uuidFromString(
+                        OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
+                    .build());
+          } catch (IOException e) {
+            return Futures.immediateFailedFuture(e);
+          }
         }, executor);
   }
 }

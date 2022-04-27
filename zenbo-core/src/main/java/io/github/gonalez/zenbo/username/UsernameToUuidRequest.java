@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.github.gonalez.zenbo.username;
 
+import io.github.gonalez.zenbo.Request;
 import org.immutables.value.Value;
 
 /**
+ * Represents the request for the <a href="https://wiki.vg/Mojang_API#Username_to_UUID">Username to UUID</a>.
+ *
  * @author Gaston Gonzalez (Gonalez)
  */
 @Value.Immutable
-public interface UsernameToUuidRequest {
+public interface UsernameToUuidRequest extends Request {
+  /** @return the name for which to get the uuid for. */
   String username();
 }

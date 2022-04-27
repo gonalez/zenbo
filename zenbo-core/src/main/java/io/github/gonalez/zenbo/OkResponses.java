@@ -13,9 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.github.gonalez.zenbo;
 
-dependencies {
-    implementation 'com.google.guava:guava:31.1-jre'
-    implementation 'com.google.code.gson:gson:2.9.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import okhttp3.Response;
+
+import java.io.IOException;
+
+/**
+ * Static methods to work with OkHttp requests.
+ *
+ * @author Gaston Gonzalez (Gonalez)
+ */
+public final class OkResponses {
+  private OkResponses() {}
+
+  private static final JsonParser JSON_PARSER = new JsonParser();
+  
+  public static JsonElement responseToJson(Response response) throws IOException {
+    return JSON_PARSER.parse(response.body().string());
+  }
 }

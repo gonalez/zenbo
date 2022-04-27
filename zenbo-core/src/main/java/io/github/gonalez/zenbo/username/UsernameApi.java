@@ -13,14 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.github.gonalez.zenbo.username;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
 /**
+ * The API for interactions with usernames.
+ *
  * @author Gaston Gonzalez (Gonalez)
  */
 public interface UsernameApi {
+  /**
+   * Returns a response containing the UUID of the requested username.
+   *
+   * @param request the request to get the response for.
+   * @return the request response.
+   * @see <a href="https://wiki.vg/Mojang_API#Username_to_UUID">Username to UUID</a>
+   */
   ListenableFuture<UsernameToUuidResponse> usernameToUuid(UsernameToUuidRequest request);
 }

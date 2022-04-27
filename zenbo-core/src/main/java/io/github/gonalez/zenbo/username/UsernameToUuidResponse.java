@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.github.gonalez.zenbo.username;
 
+import io.github.gonalez.zenbo.Response;
 import org.immutables.value.Value;
 
 import java.util.UUID;
 
 /**
+ * Represents the response of a {@link UsernameToUuidRequest}.
+ *
  * @author Gaston Gonzalez (Gonalez)
+ * @see UsernameToUuidRequest
  */
 @Value.Immutable
-public interface UsernameToUuidResponse {
+public interface UsernameToUuidResponse extends Response {
+  /** @return the uuid of the requested username. */
   UUID uuid();
 }
