@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-dependencies {
-    implementation 'com.google.guava:guava:31.1-jre'
-    implementation 'com.squareup.okhttp:okhttp:2.7.5'
+package io.github.gonalez.zenbo.username;
+
+import com.google.common.util.concurrent.ListenableFuture;
+
+/**
+ * @author Gaston Gonzalez (Gonalez)
+ */
+public interface UsernameApi {
+  ListenableFuture<UsernameToUuidResponse> usernameToUuid(UsernameToUuidRequest request);
 }

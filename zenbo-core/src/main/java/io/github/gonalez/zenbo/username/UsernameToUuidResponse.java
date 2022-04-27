@@ -14,7 +14,16 @@
  * limitations under the License.
  */
 
-dependencies {
-    implementation 'com.google.guava:guava:31.1-jre'
-    implementation 'com.squareup.okhttp:okhttp:2.7.5'
+package io.github.gonalez.zenbo.username;
+
+import org.immutables.value.Value;
+
+import java.util.UUID;
+
+/**
+ * @author Gaston Gonzalez (Gonalez)
+ */
+@Value.Immutable
+public interface UsernameToUuidResponse {
+  UUID uuid();
 }
