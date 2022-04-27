@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 /**
@@ -47,5 +48,21 @@ public final class Responses {
       }
     }, executor);
     return future;
+  }
+
+  public static <T extends Response> ListenableFuture<T> findFromCacheOrNull(
+      Request<T> request,
+      ResponseFutureCache futureCache) {
+    if (!futureCache.contains(request)) {
+      return null;
+    }
+    Optional<Request.RequestOptions> optional = request.options();
+    if (optional.isPresent()) {
+      Request.RequestOptions options = optional.get();
+      if (options.ignoreCache()) {
+        return null;
+      }
+    }
+    return futureCache.get(request);
   }
 }

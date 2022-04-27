@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableSet;
 
 import io.github.gonalez.zenbo.ResponseFailureException;
 import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
+import io.github.gonalez.zenbo.internal.DefaultResponseCache;
 import io.github.gonalez.zenbo.username.internal.DefaultUsernameApi;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterAll;
@@ -45,7 +46,7 @@ public class UsernameApiTest {
   private final UsernameApi usernameApi = new DefaultUsernameApi(new OkHttpClient(), executor,
       ResponseFailureExceptionProvider.newBuilder()
           .withException(204, new ResponseFailureException())
-          .build());
+          .build(), new DefaultResponseCache());
 
   @AfterAll
   public void tearDown() {

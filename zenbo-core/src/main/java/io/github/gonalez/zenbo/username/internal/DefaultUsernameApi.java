@@ -15,24 +15,20 @@
  */
 package io.github.gonalez.zenbo.username.internal;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import io.github.gonalez.zenbo.ResponseFailureException;
-import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
-import io.github.gonalez.zenbo.OkResponses;
-import io.github.gonalez.zenbo.Responses;
+import io.github.gonalez.zenbo.*;
 import io.github.gonalez.zenbo.username.*;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.Executor;
-
-import static com.google.common.collect.ImmutableList.toImmutableList;
 
 /**
  * A basic implementation of {@link UsernameApi}.
@@ -43,38 +39,42 @@ public class DefaultUsernameApi implements UsernameApi {
   private final OkHttpClient httpClient;
   private final Executor executor;
   private final ResponseFailureExceptionProvider failureExceptionProvider;
+  private final ResponseFutureCache responseCache;
 
   public DefaultUsernameApi(
       OkHttpClient httpClient,
       Executor executor,
-      ResponseFailureExceptionProvider failureExceptionProvider) {
+      ResponseFailureExceptionProvider failureExceptionProvider,
+      ResponseFutureCache responseCache) {
     this.httpClient = httpClient;
     this.executor = executor;
     this.failureExceptionProvider = failureExceptionProvider;
+    this.responseCache = responseCache;
   }
 
   @Override
   public ListenableFuture<UsernameToUuidResponse> usernameToUuid(UsernameToUuidRequest request) {
     return Futures.submitAsync(
         () -> {
-          try {
-            Response response = httpClient.newCall(
-                new Request.Builder()
-                    .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
-                    .build())
-                .execute();
-            ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
-            if (failureException != null) {
-              return Futures.immediateFailedFuture(failureException);
-            }
-            return Responses.addListenersIfPresent(Futures.immediateFuture(
-                ImmutableUsernameToUuidResponse.builder()
-                    .uuid(StringUuids.uuidFromString(
-                        OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
-                    .build()), request, executor);
-          } catch (IOException e) {
-            return Futures.immediateFailedFuture(e);
+          ListenableFuture<UsernameToUuidResponse> cacheResponse =
+              Responses.findFromCacheOrNull(request, responseCache);
+          if (cacheResponse != null) {
+            return cacheResponse;
           }
+          Response response = httpClient.newCall(
+              new Request.Builder()
+                  .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
+                  .build())
+              .execute();
+          ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
+          if (failureException != null) {
+            return Futures.immediateFailedFuture(failureException);
+          }
+          return Responses.addListenersIfPresent(Futures.immediateFuture(
+              ImmutableUsernameToUuidResponse.builder()
+                  .uuid(StringUuids.uuidFromString(
+                      OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
+                  .build()), request, executor);
         }, executor);
   }
 
@@ -82,6 +82,11 @@ public class DefaultUsernameApi implements UsernameApi {
   public ListenableFuture<UsernamesToUuidsResponse> usernamesToUuids(UsernamesToUuidsRequest request) {
     return Futures.submitAsync(
         () -> {
+          ListenableFuture<UsernamesToUuidsResponse> cacheResponse =
+              Responses.findFromCacheOrNull(request, responseCache);
+          if (cacheResponse != null) {
+            return cacheResponse;
+          }
           ImmutableList<ListenableFuture<UsernameToUuidResponse>> responses = request.usernames().stream()
               .map(s -> usernameToUuid(
                   ImmutableUsernameToUuidRequest.builder()
@@ -117,29 +122,30 @@ public class DefaultUsernameApi implements UsernameApi {
   public ListenableFuture<UuidToNameHistoryResponse> uuidToNameHistory(UuidToNameHistoryRequest request) {
     return Futures.submitAsync(
         () -> {
-          try {
-            Response response = httpClient.newCall(
-                new Request.Builder()
-                    .url("https://api.mojang.com/user/profiles/" + request.uuid().toString() + "/names")
-                    .build())
-                .execute();
-            ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
-            if (failureException != null) {
-              return Futures.immediateFailedFuture(failureException);
-            }
-            JsonArray responseJsonArray = OkResponses.responseToJson(response).getAsJsonArray();
-            Set<String> usernames = new HashSet<>();
-            for (int i = 0 ; i < responseJsonArray.size(); i++) {
-              JsonObject jsonObject = responseJsonArray.get(i).getAsJsonObject();
-              usernames.add(jsonObject.get("name").getAsString());
-            }
-            return Responses.addListenersIfPresent(Futures.immediateFuture(
-                ImmutableUuidToNameHistoryResponse.builder()
-                    .usernames(usernames)
-                    .build()), request, executor);
-          } catch (IOException e) {
-            return Futures.immediateFailedFuture(e);
+          ListenableFuture<UuidToNameHistoryResponse> cacheResponse =
+              Responses.findFromCacheOrNull(request, responseCache);
+          if (cacheResponse != null) {
+            return cacheResponse;
           }
+          Response response = httpClient.newCall(
+              new Request.Builder()
+                  .url("https://api.mojang.com/user/profiles/" + request.uuid().toString() + "/names")
+                  .build())
+              .execute();
+          ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
+          if (failureException != null) {
+            return Futures.immediateFailedFuture(failureException);
+          }
+          JsonArray responseJsonArray = OkResponses.responseToJson(response).getAsJsonArray();
+          Set<String> usernames = new HashSet<>();
+          for (int i = 0 ; i < responseJsonArray.size(); i++) {
+            JsonObject jsonObject = responseJsonArray.get(i).getAsJsonObject();
+            usernames.add(jsonObject.get("name").getAsString());
+          }
+          return Responses.addListenersIfPresent(Futures.immediateFuture(
+              ImmutableUuidToNameHistoryResponse.builder()
+                  .usernames(usernames)
+                  .build()), request, executor);
         }, executor);
   }
 }

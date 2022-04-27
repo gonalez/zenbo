@@ -15,6 +15,8 @@
  */
 package io.github.gonalez.zenbo;
 
+import org.immutables.value.Value;
+
 import java.util.Optional;
 
 /**
@@ -33,6 +35,19 @@ public interface Request<T extends Response> {
     void onFailure(Throwable throwable);
   }
 
+  /** Options to be used not in the response but for (optional) extra logic in the code itself. */
+  @Value.Immutable
+  interface RequestOptions {
+    /** @return whether the request will not use the cached result for the given request if is available. */
+    boolean ignoreCache();
+
+    /** @return {@code true} if the request can be cached. */
+    boolean cacheable();
+  }
+
   /** @return a {@code Optional} of the request listener. */
   Optional<RequestListener<T>> listener();
+
+  /** @return a {@code Optional} of the request options. */
+  Optional<RequestOptions> options();
 }
