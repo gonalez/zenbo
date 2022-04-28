@@ -16,11 +16,11 @@
 package io.github.gonalez.zenbo.username.internal;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.github.gonalez.zenbo.Responses.buildCachingFutureForRequest;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.*;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.github.gonalez.zenbo.*;
@@ -40,58 +40,41 @@ import java.util.concurrent.Executor;
 public class DefaultUsernameApi implements UsernameApi {
   private final OkHttpClient httpClient;
   private final Executor executor;
-  private final ResponseFailureExceptionProvider failureExceptionProvider;
   private final ResponseFutureCache responseCache;
 
   public DefaultUsernameApi(
       OkHttpClient httpClient,
       Executor executor,
-      ResponseFailureExceptionProvider failureExceptionProvider,
       ResponseFutureCache responseCache) {
     this.httpClient = httpClient;
     this.executor = executor;
-    this.failureExceptionProvider = failureExceptionProvider;
     this.responseCache = responseCache;
   }
 
   @Override
   public ListenableFuture<UsernameToUuidResponse> usernameToUuid(UsernameToUuidRequest request) {
-    return Futures.submitAsync(
+    return buildCachingFutureForRequest(request, responseCache, executor,
         () -> {
-          ListenableFuture<UsernameToUuidResponse> cacheResponse =
-              Responses.findFromCacheOrNull(request, responseCache);
-          if (cacheResponse != null) {
-            return cacheResponse;
-          }
           Response response = httpClient.newCall(
               new Request.Builder()
                   .url("https://api.mojang.com/users/profiles/minecraft/" + request.username())
                   .build())
               .execute();
-          ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
-          if (failureException != null) {
-            return Futures.immediateFailedFuture(failureException);
+          if (!response.isSuccessful()) {
+            return Futures.immediateFailedFuture(new ResponseFailureException());
           }
-          ListenableFuture<UsernameToUuidResponse> futureResponse = Responses.addListenersIfPresent(
-              Futures.immediateFuture(
-                  ImmutableUsernameToUuidResponse.builder()
-                      .uuid(StringUuids.uuidFromString(
-                          OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
-                      .build()), request, executor);
-          Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
-          return futureResponse;
-        }, executor);
+          return Futures.immediateFuture(
+              ImmutableUsernameToUuidResponse.builder()
+                  .uuid(StringUuids.uuidFromString(
+                      OkResponses.responseToJson(response).getAsJsonObject().get("id").getAsString()))
+                  .build());
+        });
   }
 
   @Override
   public ListenableFuture<UsernamesToUuidsResponse> usernamesToUuids(UsernamesToUuidsRequest request) {
-    return Futures.submitAsync(
+    return buildCachingFutureForRequest(request, responseCache, executor,
         () -> {
-          ListenableFuture<UsernamesToUuidsResponse> cacheResponse =
-              Responses.findFromCacheOrNull(request, responseCache);
-          if (cacheResponse != null) {
-            return cacheResponse;
-          }
           ImmutableList<ListenableFuture<UsernameToUuidResponse>> responses = request.usernames().stream()
               .map(s -> usernameToUuid(
                   ImmutableUsernameToUuidRequest.builder()
@@ -105,44 +88,32 @@ public class DefaultUsernameApi implements UsernameApi {
                     for (ListenableFuture<UsernameToUuidResponse> response : responses) {
                       UsernameToUuidResponse getDone = Futures.getDone(response);
                       if (getDone == null) {
-                        continue;
+                        return Futures.immediateFailedFuture(new ResponseFailureException(
+                            String.format("Failed to get complete list of usernames, got %d, expected %d",
+                                uuids.size(),
+                                request.usernames().size())));
                       }
                       uuids.add(getDone.uuid());
                     }
-                    if (uuids.size() != request.usernames().size()) {
-                      return Futures.immediateFailedFuture(new ResponseFailureException(
-                          String.format("Failed to get complete list of usernames, got %d, expected %d",
-                              uuids.size(),
-                              request.usernames().size())));
-                    }
-                    ListenableFuture<UsernamesToUuidsResponse> futureResponse = Responses.addListenersIfPresent(
-                        Futures.immediateFuture(
-                            ImmutableUsernamesToUuidsResponse.builder()
-                                .uuid(uuids)
-                                .build()), request, executor);
-                    Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
-                    return futureResponse;
+                    return Futures.immediateFuture(
+                        ImmutableUsernamesToUuidsResponse.builder()
+                            .uuid(uuids)
+                            .build());
                   }, executor);
-        }, executor);
+        });
   }
 
   @Override
   public ListenableFuture<UuidToNameHistoryResponse> uuidToNameHistory(UuidToNameHistoryRequest request) {
-    return Futures.submitAsync(
+    return buildCachingFutureForRequest(request, responseCache, executor,
         () -> {
-          ListenableFuture<UuidToNameHistoryResponse> cacheResponse =
-              Responses.findFromCacheOrNull(request, responseCache);
-          if (cacheResponse != null) {
-            return cacheResponse;
-          }
           Response response = httpClient.newCall(
               new Request.Builder()
                   .url("https://api.mojang.com/user/profiles/" + request.uuid().toString() + "/names")
                   .build())
               .execute();
-          ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
-          if (failureException != null) {
-            return Futures.immediateFailedFuture(failureException);
+          if (!response.isSuccessful()) {
+            return Futures.immediateFailedFuture(new ResponseFailureException());
           }
           JsonArray responseJsonArray = OkResponses.responseToJson(response).getAsJsonArray();
           Set<String> usernames = new HashSet<>();
@@ -150,28 +121,24 @@ public class DefaultUsernameApi implements UsernameApi {
             JsonObject jsonObject = responseJsonArray.get(i).getAsJsonObject();
             usernames.add(jsonObject.get("name").getAsString());
           }
-          ListenableFuture<UuidToNameHistoryResponse> futureResponse = Responses.addListenersIfPresent(
-              Futures.immediateFuture(
-                  ImmutableUuidToNameHistoryResponse.builder()
-                      .usernames(usernames)
-                      .build()), request, executor);
-          Responses.cacheFutureRequestIfAvailable(request, futureResponse, responseCache);
-          return futureResponse;
-        }, executor);
+          return Futures.immediateFuture(
+              ImmutableUuidToNameHistoryResponse.builder()
+                  .usernames(usernames)
+                  .build());
+        });
   }
 
   @Override
   public ListenableFuture<UuidToProfileAndSkinCapeResponse> uuidToProfileAndSkinCape(UuidToProfileAndSkinCapeRequest request) {
-    return Futures.submitAsync(
+    return buildCachingFutureForRequest(request, responseCache, executor,
         () -> {
           Response response = httpClient.newCall(
               new Request.Builder()
                   .url("https://sessionserver.mojang.com/session/minecraft/profile/" + request.uuid().toString())
                   .build())
               .execute();
-          ResponseFailureException failureException = failureExceptionProvider.provide(response.code());
-          if (failureException != null) {
-            return Futures.immediateFailedFuture(failureException);
+          if (!response.isSuccessful()) {
+            return Futures.immediateFailedFuture(new ResponseFailureException());
           }
           JsonObject jsonObjectResponse = OkResponses.responseToJson(response).getAsJsonObject();
           ImmutableUuidToProfileAndSkinCapeResponse.Builder builder =
@@ -196,6 +163,6 @@ public class DefaultUsernameApi implements UsernameApi {
             }
           }
           return Futures.immediateFuture(builder.build());
-        }, executor);
+        });
   }
 }

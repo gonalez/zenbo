@@ -20,12 +20,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+import io.github.gonalez.zenbo.ImmutableRequestOptions;
 import io.github.gonalez.zenbo.ResponseFailureException;
-import io.github.gonalez.zenbo.ResponseFailureExceptionProvider;
+import io.github.gonalez.zenbo.ResponseFutureCache;
 import io.github.gonalez.zenbo.internal.DefaultResponseCache;
 import io.github.gonalez.zenbo.username.internal.DefaultUsernameApi;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -43,10 +45,9 @@ public class UsernameApiTest {
   private static final UUID NOTCH_UUID = StringUuids.uuidFromString("069a79f444e94726a5befca90e38aaf5");
 
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
-  private final UsernameApi usernameApi = new DefaultUsernameApi(new OkHttpClient(), executor,
-      ResponseFailureExceptionProvider.newBuilder()
-          .withException(204, new ResponseFailureException())
-          .build(), new DefaultResponseCache());
+
+  private final ResponseFutureCache futureCache = new DefaultResponseCache();
+  private final UsernameApi usernameApi = new DefaultUsernameApi(new OkHttpClient(), executor, futureCache);
 
   @AfterAll
   public void tearDown() {
@@ -63,6 +64,7 @@ public class UsernameApiTest {
   }
 
   @Test
+  @Disabled
   public void testInvalidUsername204() throws Exception {
     ExecutionException exception = assertThrows(ExecutionException.class, usernameApi.usernameToUuid(
         ImmutableUsernameToUuidRequest.builder()
@@ -74,9 +76,9 @@ public class UsernameApiTest {
   @Test
   public void testUuidToNameHistory() throws Exception {
     assertTrue(usernameApi.uuidToNameHistory(
-            ImmutableUuidToNameHistoryRequest.builder()
-                .uuid(QENTIN_UUID)
-                .build())
+        ImmutableUuidToNameHistoryRequest.builder()
+            .uuid(QENTIN_UUID)
+            .build())
         .get().usernames().containsAll(ImmutableSet.of("Dizzin", "Qentin")));
   }
 
@@ -94,9 +96,25 @@ public class UsernameApiTest {
   public void testUuidToProfileAndSkinCape() throws Exception {
     assertEquals("http://textures.minecraft.net/texture/beb81f3bf4cc08c4b2038c900d5b32401a9bc7935acfed6c5d3498b566ba20c3",
         usernameApi.uuidToProfileAndSkinCape(
-                ImmutableUuidToProfileAndSkinCapeRequest.builder()
-                    .uuid(QENTIN_UUID)
-                    .build())
+            ImmutableUuidToProfileAndSkinCapeRequest.builder()
+                .uuid(QENTIN_UUID)
+                .build())
             .get().skinUrl().get());
+  }
+
+  @Test
+  public void testUsernameToUuidWithCache() throws Exception {
+    ImmutableUsernameToUuidRequest.Builder builder = ImmutableUsernameToUuidRequest.builder().username("Qentin");
+
+    ImmutableUsernameToUuidRequest build = builder.build();
+    usernameApi.usernameToUuid(build).get();
+    assertNull(futureCache.get(build).get());
+
+    ImmutableRequestOptions.Builder optionsBuilder = ImmutableRequestOptions.builder()
+        .cacheable(true);
+
+    build = builder.options(optionsBuilder.build()).build();
+    usernameApi.usernameToUuid(build).get();
+    assertNotNull(futureCache.get(build));
   }
 }

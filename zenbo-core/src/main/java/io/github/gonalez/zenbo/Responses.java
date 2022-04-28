@@ -15,11 +15,10 @@
  */
 package io.github.gonalez.zenbo;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.*;
 
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 
 /**
@@ -50,32 +49,24 @@ public final class Responses {
     return future;
   }
 
-  public static <T extends Response> ListenableFuture<T> findFromCacheOrNull(
-      Request<T> request,
-      ResponseFutureCache futureCache) {
-    if (!futureCache.contains(request)) {
-      return null;
-    }
-    Optional<Request.RequestOptions> optional = request.options();
-    if (optional.isPresent()) {
-      Request.RequestOptions options = optional.get();
-      if (options.ignoreCache()) {
-        return null;
-      }
-    }
-    return futureCache.get(request);
-  }
-
-  public static <T extends Response> void cacheFutureRequestIfAvailable(
-      Request<T> request,
-      ListenableFuture<T> future,
-      ResponseFutureCache futureCache) {
-    Optional<Request.RequestOptions> optional = request.options();
-    if (!optional.isPresent()) {
-      return;
-    }
-    if (optional.get().cacheable()) {
-      futureCache.put(request, future);
-    }
+  public static <T extends Response> ListenableFuture<T> buildCachingFutureForRequest(
+      Request<T> request, ResponseFutureCache cache,
+      Executor executor, Callable<ListenableFuture<T>> listenableFuture) {
+    return FluentFuture.from(cache.get(request))
+        .transformAsync(input -> {
+          Optional<Request.RequestOptions> optionsOptional = request.options();
+          if (input != null
+              && !(optionsOptional.isPresent()
+              && optionsOptional.get().ignoreCache())) {
+            return Futures.immediateFuture(input);
+          }
+          ListenableFuture<T> future = listenableFuture.call();
+          if (optionsOptional.isPresent()
+              && optionsOptional.get().cacheable()) {
+            cache.put(request, future);
+          }
+          addListenersIfPresent(future, request, executor);
+          return listenableFuture.call();
+        }, executor);
   }
 }

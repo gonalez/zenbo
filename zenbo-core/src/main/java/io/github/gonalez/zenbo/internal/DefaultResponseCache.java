@@ -15,6 +15,7 @@
  */
 package io.github.gonalez.zenbo.internal;
 
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.github.gonalez.zenbo.Request;
 import io.github.gonalez.zenbo.Response;
@@ -38,8 +39,8 @@ public class DefaultResponseCache implements ResponseFutureCache {
 
   @Override
   public <T extends Response> ListenableFuture<T> get(Request<T> request) {
-    if (contains(request)) {
-      return null;
+    if (!contains(request)) {
+      return Futures.immediateFuture(null);
     }
     return (ListenableFuture<T>) futures.get(request);
   }
